@@ -24,6 +24,18 @@ type KeyProvider interface {
 	GetKey() string
 }
 
+func NewSimpleKey(key string) KeyProvider {
+	return simpleKeyProvider{key: key}
+}
+
+type simpleKeyProvider struct {
+	key string
+}
+
+func (d simpleKeyProvider) GetKey() string {
+	return d.key
+}
+
 // SimpleCache interface enables a quick-start. Interface for basic usage.
 type SimpleCache interface {
 	Get(key KeyProvider) (interface{}, error)

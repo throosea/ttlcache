@@ -32,18 +32,6 @@ func TestCache_SimpleCache(t *testing.T) {
 	cache.Close()
 }
 
-func NewSimpleKey(key string) KeyProvider {
-	return simpleKeyProvider{key: key}
-}
-
-type simpleKeyProvider struct {
-	key string
-}
-
-func (d simpleKeyProvider) GetKey() string {
-	return d.key
-}
-
 // Issue 45 : This test was used to test different code paths for best performance.
 func TestCache_GetByLoaderRace(t *testing.T) {
 	t.Skip()
