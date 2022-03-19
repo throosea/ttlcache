@@ -27,20 +27,20 @@ func TestCache_SimpleCache(t *testing.T) {
 
 	cache.SetTTL(time.Second)
 	cache.Set("k", "v")
-	cache.Get(newKey("k"))
+	cache.Get(NewSimpleKey("k"))
 	cache.Purge()
 	cache.Close()
 }
 
-func newKey(key string) KeyProvider {
-	return defaultKeyProvider{key: key}
+func NewSimpleKey(key string) KeyProvider {
+	return simpleKeyProvider{key: key}
 }
 
-type defaultKeyProvider struct {
+type simpleKeyProvider struct {
 	key string
 }
 
-func (d defaultKeyProvider) GetKey() string {
+func (d simpleKeyProvider) GetKey() string {
 	return d.key
 }
 
@@ -71,7 +71,7 @@ func TestCache_GetByLoaderRace(t *testing.T) {
 		for i := 0; i < 1000; i++ {
 			wg.Add(1)
 			go func() {
-				key, _ := cache.Get(newKey("test"))
+				key, _ := cache.Get(NewSimpleKey("test"))
 				assert.Equal(t, "global", key)
 				wg.Done()
 
@@ -101,22 +101,22 @@ func TestCache_GetByLoader(t *testing.T) {
 		return "local", 0, nil
 	}
 
-	key, _ := cache.Get(newKey("test"))
+	key, _ := cache.Get(NewSimpleKey("test"))
 	assert.Equal(t, "global", key)
 
 	cache.Remove("test")
 
-	localKey, _ := cache.GetByLoader(newKey("test"), localLoader)
+	localKey, _ := cache.GetByLoader(NewSimpleKey("test"), localLoader)
 	assert.Equal(t, "local", localKey)
 
 	cache.Remove("test")
 
-	globalKey, _ := cache.GetByLoader(newKey("test"), globalLoader)
+	globalKey, _ := cache.GetByLoader(NewSimpleKey("test"), globalLoader)
 	assert.Equal(t, "global", globalKey)
 
 	cache.Remove("test")
 
-	defaultKey, _ := cache.GetByLoader(newKey("test"), nil)
+	defaultKey, _ := cache.GetByLoader(NewSimpleKey("test"), nil)
 	assert.Equal(t, "global", defaultKey)
 
 	cache.Remove("test")
@@ -138,22 +138,22 @@ func TestCache_GetByLoaderWithTtl(t *testing.T) {
 		return "local", localTtl, nil
 	}
 
-	key, ttl, _ := cache.GetWithTTL(newKey("test"))
+	key, ttl, _ := cache.GetWithTTL(NewSimpleKey("test"))
 	assert.Equal(t, "global", key)
 	assert.Equal(t, ttl, globalTtl)
 	cache.Remove("test")
 
-	localKey, ttl2, _ := cache.GetByLoaderWithTtl(newKey("test"), localLoader)
+	localKey, ttl2, _ := cache.GetByLoaderWithTtl(NewSimpleKey("test"), localLoader)
 	assert.Equal(t, "local", localKey)
 	assert.Equal(t, ttl2, localTtl)
 	cache.Remove("test")
 
-	globalKey, ttl3, _ := cache.GetByLoaderWithTtl(newKey("test"), globalLoader)
+	globalKey, ttl3, _ := cache.GetByLoaderWithTtl(NewSimpleKey("test"), globalLoader)
 	assert.Equal(t, "global", globalKey)
 	assert.Equal(t, ttl3, globalTtl)
 	cache.Remove("test")
 
-	defaultKey, ttl4, _ := cache.GetByLoaderWithTtl(newKey("test"), nil)
+	defaultKey, ttl4, _ := cache.GetByLoaderWithTtl(NewSimpleKey("test"), nil)
 	assert.Equal(t, "global", defaultKey)
 	assert.Equal(t, ttl4, globalTtl)
 	cache.Remove("test")
@@ -250,14 +250,14 @@ func TestCache_TestMetrics(t *testing.T) {
 	cache.Set("myKey", "myData")
 	cache.SetWithTTL("myKey2", "myData", time.Second)
 
-	cache.Get(newKey("myKey"))
-	cache.Get(newKey("myMiss"))
+	cache.Get(NewSimpleKey("myKey"))
+	cache.Get(NewSimpleKey("myMiss"))
 
 	metrics := cache.GetMetrics()
 	assert.Equal(t, int64(2), metrics.Inserted)
 	assert.Equal(t, int64(1), metrics.Misses)
-	assert.Equal(t, int64(2), metrics.Hits)
-	assert.Equal(t, int64(1), metrics.Retrievals)
+	assert.Equal(t, int64(2), metrics.Retrievals)
+	assert.Equal(t, int64(1), metrics.Hits)
 	cache.Purge()
 	metrics = cache.GetMetrics()
 	assert.Equal(t, int64(2), metrics.Evicted)
@@ -293,7 +293,7 @@ func TestCache_TestSingleFetch(t *testing.T) {
 	for i := 0; i < 1000; i++ {
 		wg.Add(1)
 		go func() {
-			cache.Get(newKey("1"))
+			cache.Get(NewSimpleKey("1"))
 			wg.Done()
 		}()
 	}
@@ -330,20 +330,20 @@ func TestCache_TestLoaderFunction(t *testing.T) {
 		return nil, 0, ErrNotFound
 	})
 
-	_, err := cache.Get(newKey("1"))
+	_, err := cache.Get(NewSimpleKey("1"))
 	assert.Equal(t, ErrNotFound, err)
 
 	cache.SetLoaderFunction(func(key KeyProvider) (data interface{}, ttl time.Duration, err error) {
 		return "1", 0, nil
 	})
 
-	value, found := cache.Get(newKey("1"))
+	value, found := cache.Get(NewSimpleKey("1"))
 	assert.Equal(t, nil, found)
 	assert.Equal(t, "1", value)
 
 	cache.Close()
 
-	value, found = cache.Get(newKey("1"))
+	value, found = cache.Get(NewSimpleKey("1"))
 	assert.Equal(t, ErrClosed, found)
 	assert.Equal(t, nil, value)
 }
@@ -358,7 +358,7 @@ func TestCache_TestLoaderFunctionDuringClose(t *testing.T) {
 		return "1", 0, nil
 	})
 
-	value, found := cache.Get(newKey("1"))
+	value, found := cache.Get(NewSimpleKey("1"))
 	assert.Equal(t, ErrClosed, found)
 	assert.Equal(t, nil, value)
 
@@ -382,7 +382,7 @@ func TestCache_TestLoaderFunctionParallelKeyAccess(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			value, found := cache.Get(newKey("foo"))
+			value, found := cache.Get(NewSimpleKey("foo"))
 			if value != "1" || found != nil { // Use an atomic to avoid spamming logs
 				atomic.AddUint64(&errCount, 1)
 			}
@@ -442,7 +442,7 @@ func TestCache_ModifyAfterClose(t *testing.T) {
 	cache.Set("2", 1)
 	cache.Set("3", 1)
 
-	_, findErr := cache.Get(newKey("1"))
+	_, findErr := cache.Get(NewSimpleKey("1"))
 	assert.Equal(t, nil, findErr)
 	assert.Equal(t, nil, cache.Set("broken", 1))
 	assert.Equal(t, ErrNotFound, cache.Remove("broken2"))
@@ -452,7 +452,7 @@ func TestCache_ModifyAfterClose(t *testing.T) {
 
 	cache.Close()
 
-	_, getErr := cache.Get(newKey("broken3"))
+	_, getErr := cache.Get(NewSimpleKey("broken3"))
 	assert.Equal(t, ErrClosed, getErr)
 	assert.Equal(t, ErrClosed, cache.Set("broken", 1))
 	assert.Equal(t, ErrClosed, cache.Remove("broken2"))
@@ -475,7 +475,7 @@ func TestCache_MultipleCloseCalls(t *testing.T) {
 	cache.Set("test", "!")
 	startTime := time.Now()
 	for now := time.Now(); now.Before(startTime.Add(time.Second * 3)); now = time.Now() {
-		if _, err := cache.Get(newKey("test")); err != nil {
+		if _, err := cache.Get(NewSimpleKey("test")); err != nil {
 			t.Errorf("Item was not found, even though it should not expire.")
 		}
 
@@ -499,7 +499,7 @@ func TestCache_SkipTtlExtensionOnHit(t *testing.T) {
 	cache.Set("test", "!")
 	startTime := time.Now()
 	for now := time.Now(); now.Before(startTime.Add(time.Second * 3)); now = time.Now() {
-		if _, err := cache.Get(newKey("test")); err != nil {
+		if _, err := cache.Get(NewSimpleKey("test")); err != nil {
 			t.Errorf("Item was not found, even though it should not expire.")
 		}
 
@@ -508,7 +508,7 @@ func TestCache_SkipTtlExtensionOnHit(t *testing.T) {
 	cache.SkipTTLExtensionOnHit(true)
 	cache.Set("expireTest", "!")
 	// will loop if item does not expire
-	for _, err := cache.Get(newKey("expireTest")); err == nil; _, err = cache.Get(newKey("expireTest")) {
+	for _, err := cache.Get(NewSimpleKey("expireTest")); err == nil; _, err = cache.Get(NewSimpleKey("expireTest")) {
 	}
 }
 
@@ -549,7 +549,7 @@ func TestCache_ForRacesAcrossGoroutines(t *testing.T) {
 
 			go func(i int) {
 				time.Sleep(time.Nanosecond * time.Duration(rand.Int63n(1000000)))
-				cache.Get(newKey(fmt.Sprintf("test%d", i/10)))
+				cache.Get(NewSimpleKey(fmt.Sprintf("test%d", i/10)))
 				wgGet.Done()
 			}(i)
 		}
@@ -595,7 +595,7 @@ func TestCache_SkipTtlExtensionOnHit_ForRacesAcrossGoroutines(t *testing.T) {
 
 			go func(i int) {
 				time.Sleep(time.Nanosecond * time.Duration(rand.Int63n(1000000)))
-				cache.Get(newKey(fmt.Sprintf("test%d", i/10)))
+				cache.Get(NewSimpleKey(fmt.Sprintf("test%d", i/10)))
 				wgGet.Done()
 			}(i)
 		}
@@ -702,7 +702,7 @@ func TestRemovalWithTtlDoesNotPanic(t *testing.T) {
 	cache.Set("key", "value")
 	cache.Remove("key")
 
-	value, err := cache.Get(newKey("keyWithTTL"))
+	value, err := cache.Get(NewSimpleKey("keyWithTTL"))
 	if err == nil {
 		t.Logf("got %s for keyWithTTL\n", value)
 	}
@@ -711,7 +711,7 @@ func TestRemovalWithTtlDoesNotPanic(t *testing.T) {
 
 	<-time.After(3 * time.Second)
 
-	value, err = cache.Get(newKey("keyWithTTL"))
+	value, err = cache.Get(NewSimpleKey("keyWithTTL"))
 	if err != nil {
 		t.Logf("got %s for keyWithTTL\n", value)
 	} else {
@@ -730,7 +730,7 @@ func TestCacheIndividualExpirationBiggerThanGlobal(t *testing.T) {
 	cache.SetTTL(time.Duration(50 * time.Millisecond))
 	cache.SetWithTTL("key", "value", time.Duration(100*time.Millisecond))
 	<-time.After(150 * time.Millisecond)
-	data, exists := cache.Get(newKey("key"))
+	data, exists := cache.Get(NewSimpleKey("key"))
 	assert.Equal(t, exists, ErrNotFound, "Expected item to not exist")
 	assert.Nil(t, data, "Expected item to be nil")
 }
@@ -743,17 +743,17 @@ func TestCacheGlobalExpirationByGlobal(t *testing.T) {
 
 	cache.Set("key", "value")
 	<-time.After(50 * time.Millisecond)
-	data, exists := cache.Get(newKey("key"))
+	data, exists := cache.Get(NewSimpleKey("key"))
 	assert.Equal(t, exists, nil, "Expected item to exist in cache")
 	assert.Equal(t, data.(string), "value", "Expected item to have 'value' in value")
 
 	cache.SetTTL(time.Duration(50 * time.Millisecond))
-	data, exists = cache.Get(newKey("key"))
+	data, exists = cache.Get(NewSimpleKey("key"))
 	assert.Equal(t, exists, nil, "Expected item to exist in cache")
 	assert.Equal(t, data.(string), "value", "Expected item to have 'value' in value")
 
 	<-time.After(100 * time.Millisecond)
-	data, exists = cache.Get(newKey("key"))
+	data, exists = cache.Get(NewSimpleKey("key"))
 	assert.Equal(t, exists, ErrNotFound, "Expected item to not exist")
 	assert.Nil(t, data, "Expected item to be nil")
 }
@@ -814,12 +814,12 @@ func TestCacheGet(t *testing.T) {
 	cache := NewCache()
 	defer cache.Close()
 
-	data, exists := cache.Get(newKey("hello"))
+	data, exists := cache.Get(NewSimpleKey("hello"))
 	assert.Equal(t, exists, ErrNotFound, "Expected empty cache to return no data")
 	assert.Nil(t, data, "Expected data to be empty")
 
 	cache.Set("hello", "world")
-	data, exists = cache.Get(newKey("hello"))
+	data, exists = cache.Get(NewSimpleKey("hello"))
 	assert.NotNil(t, data, "Expected data to be not nil")
 	assert.Equal(t, nil, exists, "Expected data to exist")
 	assert.Equal(t, "world", (data.(string)), "Expected data content to be 'world'")
@@ -861,13 +861,13 @@ func TestCacheGetWithTTL(t *testing.T) {
 	cache := NewCache()
 	defer cache.Close()
 
-	data, ttl, exists := cache.GetWithTTL(newKey("hello"))
+	data, ttl, exists := cache.GetWithTTL(NewSimpleKey("hello"))
 	assert.Equal(t, exists, ErrNotFound, "Expected empty cache to return no data")
 	assert.Nil(t, data, "Expected data to be empty")
 	assert.Equal(t, int(ttl), 0, "Expected item TTL to be 0")
 
 	cache.Set("hello", "world")
-	data, ttl, exists = cache.GetWithTTL(newKey("hello"))
+	data, ttl, exists = cache.GetWithTTL(NewSimpleKey("hello"))
 	assert.NotNil(t, data, "Expected data to be not nil")
 	assert.Equal(t, nil, exists, "Expected data to exist")
 	assert.Equal(t, "world", (data.(string)), "Expected data content to be 'world'")
@@ -876,7 +876,7 @@ func TestCacheGetWithTTL(t *testing.T) {
 	orgttl := time.Duration(500 * time.Millisecond)
 	cache.SetWithTTL("hello", "world", orgttl)
 	time.Sleep(10 * time.Millisecond)
-	data, ttl, exists = cache.GetWithTTL(newKey("hello"))
+	data, ttl, exists = cache.GetWithTTL(NewSimpleKey("hello"))
 	assert.NotNil(t, data, "Expected data to be not nil")
 	assert.Equal(t, nil, exists, "Expected data to exist")
 	assert.Equal(t, "world", (data.(string)), "Expected data content to be 'world'")
@@ -885,7 +885,7 @@ func TestCacheGetWithTTL(t *testing.T) {
 	cache.SkipTTLExtensionOnHit(true)
 	cache.SetWithTTL("hello", "world", orgttl)
 	time.Sleep(10 * time.Millisecond)
-	data, ttl, exists = cache.GetWithTTL(newKey("hello"))
+	data, ttl, exists = cache.GetWithTTL(NewSimpleKey("hello"))
 	assert.NotNil(t, data, "Expected data to be not nil")
 	assert.Equal(t, nil, exists, "Expected data to exist")
 	assert.Equal(t, "world", (data.(string)), "Expected data content to be 'world'")
@@ -901,7 +901,7 @@ func TestCache_TestGetWithTTLAndLoaderFunction(t *testing.T) {
 		return nil, 0, ErrNotFound
 	})
 
-	_, ttl, err := cache.GetWithTTL(newKey("1"))
+	_, ttl, err := cache.GetWithTTL(NewSimpleKey("1"))
 	assert.Equal(t, ErrNotFound, err, "Expected error to be ErrNotFound")
 	assert.Equal(t, int(ttl), 0, "Expected item TTL to be 0")
 
@@ -910,13 +910,13 @@ func TestCache_TestGetWithTTLAndLoaderFunction(t *testing.T) {
 		return "1", orgttl, nil
 	})
 
-	value, ttl, found := cache.GetWithTTL(newKey("1"))
+	value, ttl, found := cache.GetWithTTL(NewSimpleKey("1"))
 	assert.Equal(t, nil, found)
 	assert.Equal(t, "1", value)
 	assert.Equal(t, ttl, orgttl, "Expected item TTL to be the same as the original TTL")
 	cache.Close()
 
-	value, ttl, found = cache.GetWithTTL(newKey("1"))
+	value, ttl, found = cache.GetWithTTL(NewSimpleKey("1"))
 	assert.Equal(t, ErrClosed, found)
 	assert.Equal(t, nil, value)
 	assert.Equal(t, int(ttl), 0, "Expected returned ttl for an ErrClosed err to be 0")
@@ -1025,7 +1025,7 @@ func TestCacheSetWithTTLExistItem(t *testing.T) {
 	cache.SetWithTTL("key", "value", time.Duration(50*time.Millisecond))
 	<-time.After(30 * time.Millisecond)
 	cache.SetWithTTL("key", "value2", time.Duration(50*time.Millisecond))
-	data, exists := cache.Get(newKey("key"))
+	data, exists := cache.Get(NewSimpleKey("key"))
 	assert.Equal(t, nil, exists, "Expected 'key' to exist")
 	assert.Equal(t, "value2", data.(string), "Expected 'data' to have value 'value2'")
 }
@@ -1043,7 +1043,7 @@ func TestCache_Purge(t *testing.T) {
 		cache.SetWithTTL("key", "value", time.Duration(50*time.Millisecond))
 		<-time.After(30 * time.Millisecond)
 		cache.SetWithTTL("key", "value2", time.Duration(50*time.Millisecond))
-		cache.Get(newKey("key"))
+		cache.Get(NewSimpleKey("key"))
 
 		cache.Purge()
 		assert.Equal(t, 0, cache.Count(), "Cache should be empty")
@@ -1066,7 +1066,7 @@ func TestCache_Limit(t *testing.T) {
 	assert.Equal(t, 10, cache.Count(), "Cache should equal to limit")
 	for i := 90; i < 100; i++ {
 		key := "key" + strconv.FormatInt(int64(i), 10)
-		val, _ := cache.Get(newKey(key))
+		val, _ := cache.Get(NewSimpleKey(key))
 		assert.Equal(t, "value", val, "Cache should be set [key90, key99]")
 	}
 }
