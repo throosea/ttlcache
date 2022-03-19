@@ -35,7 +35,7 @@ import (
 	"fmt"
 	"time"
 
-	"throosea.com/ttlcache/v1"
+	"throosea.com/ttlcache"
 )
 
 var notFound = ttlcache.ErrNotFound
@@ -65,7 +65,7 @@ import (
 	"fmt"
 	"time"
 
-	"throosea.com/ttlcache/v1"
+	"throosea.com/ttlcache"
 )
 
 var (

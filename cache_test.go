@@ -13,7 +13,7 @@ import (
 	"sync"
 
 	"github.com/stretchr/testify/assert"
-	. "throosea.com/ttlcache/v1"
+	. "throosea.com/ttlcache"
 )
 
 func TestMain(m *testing.M) {

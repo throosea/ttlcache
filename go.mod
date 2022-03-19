@@ -1,4 +1,4 @@
-module throosea.com/ttlcache/v1
+module throosea.com/ttlcache
 
 go 1.17
 
