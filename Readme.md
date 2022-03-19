@@ -35,7 +35,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ReneKroon/ttlcache/v2"
+	"throosea.com/ttlcache/v1"
 )
 
 var notFound = ttlcache.ErrNotFound
@@ -65,7 +65,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ReneKroon/ttlcache/v2"
+	"throosea.com/ttlcache/v1"
 )
 
 var (
