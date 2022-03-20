@@ -81,9 +81,9 @@ func TestPriorityQueueUpdate(t *testing.T) {
 	queue.push(item)
 	assert.Equal(t, queue.Len(), 1, "The queue is supposed to be with 1 item")
 
-	item.key = "newKey"
+	item.key = "NewSimpleKey"
 	queue.update(item)
 	newItem := queue.pop()
-	assert.Equal(t, newItem.key, "newKey", "The item key didn't change")
+	assert.Equal(t, newItem.key, "NewSimpleKey", "The item key didn't change")
 	assert.Equal(t, queue.Len(), 0, "The queue is supposed to be with 0 items")
 }

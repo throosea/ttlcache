@@ -18,12 +18,28 @@ type ExpireCallback func(key string, value interface{})
 type ExpireReasonCallback func(key string, reason EvictionReason, value interface{})
 
 // LoaderFunction can be supplied to retrieve an item where a cache miss occurs. Supply an item specific ttl or Duration.Zero
-type LoaderFunction func(key string) (data interface{}, ttl time.Duration, err error)
+type LoaderFunction func(keyProvider KeyProvider) (data interface{}, ttl time.Duration, err error)
+
+type KeyProvider interface {
+	GetKey() string
+}
+
+func NewSimpleKey(key string) KeyProvider {
+	return simpleKeyProvider{key: key}
+}
+
+type simpleKeyProvider struct {
+	key string
+}
+
+func (d simpleKeyProvider) GetKey() string {
+	return d.key
+}
 
 // SimpleCache interface enables a quick-start. Interface for basic usage.
 type SimpleCache interface {
-	Get(key string) (interface{}, error)
-	GetWithTTL(key string) (interface{}, time.Duration, error)
+	Get(key KeyProvider) (interface{}, error)
+	GetWithTTL(key KeyProvider) (interface{}, time.Duration, error)
 	Set(key string, data interface{}) error
 	SetTTL(ttl time.Duration) error
 	SetWithTTL(key string, data interface{}, ttl time.Duration) error
@@ -302,38 +318,38 @@ func (cache *Cache) SetWithTTL(key string, data interface{}, ttl time.Duration) 
 
 // Get is a thread-safe way to lookup items
 // Every lookup, also touches the item, hence extending its life
-func (cache *Cache) Get(key string) (interface{}, error) {
+func (cache *Cache) Get(key KeyProvider) (interface{}, error) {
 	return cache.GetByLoader(key, nil)
 }
 
 // GetWithTTL has exactly the same behaviour as Get but also returns
 // the remaining TTL for a specific item at the moment its retrieved
-func (cache *Cache) GetWithTTL(key string) (interface{}, time.Duration, error) {
+func (cache *Cache) GetWithTTL(key KeyProvider) (interface{}, time.Duration, error) {
 	return cache.GetByLoaderWithTtl(key, nil)
 }
 
 // GetByLoader can take a per key loader function (i.e. to propagate context)
-func (cache *Cache) GetByLoader(key string, customLoaderFunction LoaderFunction) (interface{}, error) {
+func (cache *Cache) GetByLoader(key KeyProvider, customLoaderFunction LoaderFunction) (interface{}, error) {
 	dataToReturn, _, err := cache.GetByLoaderWithTtl(key, customLoaderFunction)
 
 	return dataToReturn, err
 }
 
 // GetByLoaderWithTtl can take a per key loader function (i.e. to propagate context)
-func (cache *Cache) GetByLoaderWithTtl(key string, customLoaderFunction LoaderFunction) (interface{}, time.Duration, error) {
+func (cache *Cache) GetByLoaderWithTtl(key KeyProvider, customLoaderFunction LoaderFunction) (interface{}, time.Duration, error) {
 	cache.mutex.Lock()
 	if cache.isShutDown {
 		cache.mutex.Unlock()
 		return nil, 0, ErrClosed
 	}
 
-	cache.metrics.Hits++
-	item, exists, triggerExpirationNotification := cache.getItem(key)
+	cache.metrics.Retrievals++
+	item, exists, triggerExpirationNotification := cache.getItem(key.GetKey())
 
 	var dataToReturn interface{}
 	ttlToReturn := time.Duration(0)
 	if exists {
-		cache.metrics.Retrievals++
+		cache.metrics.Hits++
 		dataToReturn = item.data
 		if !cache.skipTTLExtension {
 			ttlToReturn = item.ttl
@@ -365,7 +381,7 @@ func (cache *Cache) GetByLoaderWithTtl(key string, customLoaderFunction LoaderFu
 			data interface{}
 			ttl  time.Duration
 		}
-		ch := cache.loaderLock.DoChan(key, func() (interface{}, error) {
+		ch := cache.loaderLock.DoChan(key.GetKey(), func() (interface{}, error) {
 			// cache is not blocked during io
 			invokeData, ttl, err := cache.invokeLoader(key, loaderFunction)
 			lr := &loaderResult{
@@ -400,10 +416,10 @@ func (cache *Cache) notifyExpiration() {
 	cache.expirationNotification <- true
 }
 
-func (cache *Cache) invokeLoader(key string, loaderFunction LoaderFunction) (dataToReturn interface{}, ttl time.Duration, err error) {
+func (cache *Cache) invokeLoader(key KeyProvider, loaderFunction LoaderFunction) (dataToReturn interface{}, ttl time.Duration, err error) {
 	dataToReturn, ttl, err = loaderFunction(key)
 	if err == nil {
-		err = cache.SetWithTTL(key, dataToReturn, ttl)
+		err = cache.SetWithTTL(key.GetKey(), dataToReturn, ttl)
 		if err != nil {
 			dataToReturn = nil
 		}
